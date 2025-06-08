@@ -1,0 +1,56 @@
+run:
+  tests: true
+  timeout: 5m
+  build-tags: [ ]
+  go: '1.24'
+
+issues:
+  max-issues-per-linter: 75
+  max-same-issues: 5
+
+linters:
+  enable-all: false
+  enable:
+    - errcheck
+    - govet
+    - ineffassign
+    - gomodguard
+    - gci
+    - dupl
+    - errname
+    - exhaustive
+    - forbidigo
+    - goconst
+    - gocritic
+    - gofmt
+    - gosec
+    - importas
+    - intrange
+    - nestif
+    - maintidx
+    - makezero
+    - misspell
+    - mnd
+    - perfsprint
+    - prealloc
+    - testpackage
+    - unconvert
+    - unparam
+    - whitespace
+    - wrapcheck
+    - usestdlibvars
+    - unused
+
+linters-settings:
+  gci:
+    local-prefixes: github.com/learnio-space/learnio
+    skip-generated: true
+
+    sections:
+      - Standard
+      - Default
+      - Prefix(github.com/learnio-space/learnio)
+
+  wrapcheck:
+    ignorePackageGlobs:
+      - github.com/gofiber/fiber/*
