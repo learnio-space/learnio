@@ -10,12 +10,11 @@ on:
     branches: [ main ]
 
 jobs:
-  # 1. Определяем, в каких папках были изменения
   detect_changes:
     runs-on: ubuntu-latest
     outputs:
       teamhub:      ${{ steps.filter.outputs.teamhub }}
-      coursemaker:  ${{ steps.filter.outputs.coursemaker }}
+      coursemaker:  ${{ steps.filter.outputs.course maker }}
       coursereader: ${{ steps.filter.outputs.coursereader }}
       roadbuilder:  ${{ steps.filter.outputs.roadbuilder }}
       skilltracker: ${{ steps.filter.outputs.skilltracker }}
@@ -45,64 +44,105 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        service: [ teamhub, coursemaker, coursereader, roadbuilder, skilltracker, searchengine ]
-    if: ${{ needs.detect_changes.outputs[matrix.service] == 'true' }}
+        include:
+          - service: teamhub
+            folder: teamhub
+            changed: ${{ needs.detect_changes.outputs.teamhub == 'true' }}
+          - service: coursemaker
+            folder: coursemaker
+            changed: ${{ needs.detect_changes.outputs.course maker == 'true' }}
+          - service: coursereader
+            folder: coursereader
+            changed: ${{ needs.detect_changes.outputs.coursereader == 'true' }}
+          - service: roadbuilder
+            folder: roadbuilder
+            changed: ${{ needs.detect_changes.outputs.roadbuilder == 'true' }}
+          - service: skilltracker
+            folder: skilltracker
+            changed: ${{ needs.detect_changes.outputs.skilltracker == 'true' }}
+          - service: searchengine
+            folder: searchengine
+            changed: ${{ needs.detect_changes.outputs.searchengine == 'true' }}
+    if: ${{ matrix.changed }}
     steps:
       - uses: actions/checkout@v4
-
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
           go-version: ${{ env.GO_VERSION }}
-
       - name: Lint ${{ matrix.service }}
         run: |
-          # запускаем golangci-lint из корня, чтобы он увидел ваш .golangci.yml
-          golangci-lint run \
-            --config .golangci.yml \
-            --out-format colored-line-number \
-            --path-prefix ./${{ matrix.service }} \
-            ./${{ matrix.service }}
+          cd ${{ matrix.folder }}
+          golangci-lint run --config .golangci.yml --out-format colored-line-number .
 
   test:
     needs: detect_changes
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        service: [teamhub, coursemaker, coursereader, roadbuilder, skilltracker, searchengine]
-    if: ${{ needs.detect_changes.outputs[matrix.service] == 'true' }}
+        include:
+          - service: teamhub
+            folder: teamhub
+            changed: ${{ needs.detect_changes.outputs.teamhub == 'true' }}
+          - service: coursemaker
+            folder: coursemaker
+            changed: ${{ needs.detect_changes.outputs.course maker == 'true' }}
+          - service: coursereader
+            folder: coursereader
+            changed: ${{ needs.detect_changes.outputs.coursereader == 'true' }}
+          - service: roadbuilder
+            folder: roadbuilder
+            changed: ${{ needs.detect_changes.outputs.roadbuilder == 'true' }}
+          - service: skilltracker
+            folder: skilltracker
+            changed: ${{ needs.detect_changes.outputs.skilltracker == 'true' }}
+          - service: searchengine
+            folder: searchengine
+            changed: ${{ needs.detect_changes.outputs.searchengine == 'true' }}
+    if: ${{ matrix.changed }}
     steps:
       - uses: actions/checkout@v4
-
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
           go-version: ${{ env.GO_VERSION }}
-
       - name: Test ${{ matrix.service }}
         run: |
-          cd ${{ matrix.service }}
+          cd ${{ matrix.folder }}
           go test ./...
 
   build:
-    needs:
-      - detect_changes
-      - lint
-      - test
+    needs: detect_changes
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        service: [teamhub, coursemaker, coursereader, roadbuilder, skilltracker, searchengine]
-    if: ${{ needs.detect_changes.outputs[matrix.service] == 'true' }}
+        include:
+          - service: teamhub
+            folder: teamhub
+            changed: ${{ needs.detect_changes.outputs.teamhub == 'true' }}
+          - service: coursemaker
+            folder: coursemaker
+            changed: ${{ needs.detect_changes.outputs.course maker == 'true' }}
+          - service: coursereader
+            folder: coursereader
+            changed: ${{ needs.detect_changes.outputs.coursereader == 'true' }}
+          - service: roadbuilder
+            folder: roadbuilder
+            changed: ${{ needs.detect_changes.outputs.roadbuilder == 'true' }}
+          - service: skilltracker
+            folder: skilltracker
+            changed: ${{ needs.detect_changes.outputs.skilltracker == 'true' }}
+          - service: searchengine
+            folder: searchengine
+            changed: ${{ needs.detect_changes.outputs.searchengine == 'true' }}
+    if: ${{ matrix.changed }}
     steps:
       - uses: actions/checkout@v4
-
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
           go-version: ${{ env.GO_VERSION }}
-
       - name: Build ${{ matrix.service }}
         run: |
-          cd ${{ matrix.service }}
+          cd ${{ matrix.folder }}
           go build -o bin/${{ matrix.service }} .
