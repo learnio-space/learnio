@@ -34,7 +34,6 @@ jobs:
               - 'searchengine/**'
       - id: set-matrix
         run: |
-          # Собираем имена сервисов в массив
           services=()
           if [ "${{ steps.filter.outputs.teamhub }}"    = 'true' ]; then services+=('"teamhub"');    fi
           if [ "${{ steps.filter.outputs.coursemaker }}" = 'true' ]; then services+=('"coursemaker"'); fi
@@ -42,21 +41,16 @@ jobs:
           if [ "${{ steps.filter.outputs.roadbuilder }}" = 'true' ]; then services+=('"roadbuilder"'); fi
           if [ "${{ steps.filter.outputs.skilltracker }}"= 'true' ]; then services+=('"skilltracker"');fi
           if [ "${{ steps.filter.outputs.searchengine }}"= 'true' ]; then services+=('"searchengine"');fi
-          # Формируем JSON-массив, даже если пустой
-          json="["
-          json+=$(IFS=,; echo "${services[*]}")
-          json+="]"
-          echo "services=$json" >> $GITHUB_OUTPUT
+          echo "services=[${services[*]}]" >> $GITHUB_OUTPUT
         shell: bash
 
-  # 2) LINT
   lint:
     needs: detect_changes
-    if: ${{ fromJson(needs.detect_changes.outputs.services) != '' }}
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        service: ${{ fromJson(needs.detect_changes.outputs.services) }}
+        service: [teamhub, coursemaker, coursereader, roadbuilder, skilltracker, searchengine]
+    if: ${{ contains(fromJson(needs.detect_changes.outputs.services), matrix.service) }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
@@ -74,11 +68,11 @@ jobs:
 
   test:
     needs: detect_changes
-    if: ${{ fromJson(needs.detect_changes.outputs.services) != '' }}
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        service: ${{ fromJson(needs.detect_changes.outputs.services) }}
+        service: [teamhub, coursemaker, coursereader, roadbuilder, skilltracker, searchengine]
+    if: ${{ contains(fromJson(needs.detect_changes.outputs.services), matrix.service) }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
@@ -91,11 +85,11 @@ jobs:
 
   build:
     needs: [lint, test]
-    if: ${{ fromJson(needs.detect_changes.outputs.services) != '' }}
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        service: ${{ fromJson(needs.detect_changes.outputs.services) }}
+        service: [teamhub, coursemaker, coursereader, roadbuilder, skilltracker, searchengine]
+    if: ${{ contains(fromJson(needs.detect_changes.outputs.services), matrix.service) }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
