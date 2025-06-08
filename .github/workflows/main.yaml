@@ -1,0 +1,108 @@
+name: CI
+
+env:
+  GO_VERSION: '1.24'
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  # 1. Определяем, в каких папках были изменения
+  detect_changes:
+    runs-on: ubuntu-latest
+    outputs:
+      teamhub:      ${{ steps.filter.outputs.teamhub }}
+      coursemaker:  ${{ steps.filter.outputs.coursemaker }}
+      coursereader: ${{ steps.filter.outputs.coursereader }}
+      roadbuilder:  ${{ steps.filter.outputs.roadbuilder }}
+      skilltracker: ${{ steps.filter.outputs.skilltracker }}
+      searchengine: ${{ steps.filter.outputs.searchengine }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Detect changed services
+        id: filter
+        uses: dorny/paths-filter@v2
+        with:
+          filters: |
+            teamhub:
+              - 'teamhub/**'
+            coursemaker:
+              - 'coursemaker/**'
+            coursereader:
+              - 'coursereader/**'
+            roadbuilder:
+              - 'roadbuilder/**'
+            skilltracker:
+              - 'skilltracker/**'
+            searchengine:
+              - 'searchengine/**'
+
+  lint:
+    needs: detect_changes
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service: [ teamhub, coursemaker, coursereader, roadbuilder, skilltracker, searchengine ]
+    if: ${{ needs.detect_changes.outputs[matrix.service] == 'true' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Lint ${{ matrix.service }}
+        run: |
+          # запускаем golangci-lint из корня, чтобы он увидел ваш .golangci.yml
+          golangci-lint run \
+            --config .golangci.yml \
+            --out-format colored-line-number \
+            --path-prefix ./${{ matrix.service }} \
+            ./${{ matrix.service }}
+
+  test:
+    needs: detect_changes
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service: [teamhub, coursemaker, coursereader, roadbuilder, skilltracker, searchengine]
+    if: ${{ needs.detect_changes.outputs[matrix.service] == 'true' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Test ${{ matrix.service }}
+        run: |
+          cd ${{ matrix.service }}
+          go test ./...
+
+  build:
+    needs:
+      - detect_changes
+      - lint
+      - test
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service: [teamhub, coursemaker, coursereader, roadbuilder, skilltracker, searchengine]
+    if: ${{ needs.detect_changes.outputs[matrix.service] == 'true' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Build ${{ matrix.service }}
+        run: |
+          cd ${{ matrix.service }}
+          go build -o bin/${{ matrix.service }} .
