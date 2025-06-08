@@ -21,8 +21,7 @@ jobs:
       searchengine: ${{ steps.filter.outputs.searchengine }}
     steps:
       - uses: actions/checkout@v4
-      - name: Detect changed services
-        id: filter
+      - id: filter
         uses: dorny/paths-filter@v2
         with:
           filters: |
@@ -66,8 +65,7 @@ jobs:
     if: ${{ matrix.changed }}
     steps:
       - uses: actions/checkout@v4
-      - name: Setup Go
-        uses: actions/setup-go@v5
+      - uses: actions/setup-go@v5
         with:
           go-version: ${{ env.GO_VERSION }}
       - name: Lint ${{ matrix.service }}
@@ -102,8 +100,7 @@ jobs:
     if: ${{ matrix.changed }}
     steps:
       - uses: actions/checkout@v4
-      - name: Setup Go
-        uses: actions/setup-go@v5
+      - uses: actions/setup-go@v5
         with:
           go-version: ${{ env.GO_VERSION }}
       - name: Test ${{ matrix.service }}
@@ -112,10 +109,7 @@ jobs:
           go test ./...
 
   build:
-    needs:
-      - detect_changes
-      - test
-      - lint
+    needs: [detect_changes, lint, test]
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -141,8 +135,7 @@ jobs:
     if: ${{ matrix.changed }}
     steps:
       - uses: actions/checkout@v4
-      - name: Setup Go
-        uses: actions/setup-go@v5
+      - uses: actions/setup-go@v5
         with:
           go-version: ${{ env.GO_VERSION }}
       - name: Build ${{ matrix.service }}
