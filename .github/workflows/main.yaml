@@ -13,7 +13,12 @@ jobs:
   detect_changes:
     runs-on: ubuntu-latest
     outputs:
-      services: ${{ steps.build-matrix.outputs.services }}
+      teamhub:      ${{ steps.filter.outputs.teamhub }}
+      coursemaker:  ${{ steps.filter.outputs.coursemaker }}
+      coursereader: ${{ steps.filter.outputs.coursereader }}
+      roadbuilder:  ${{ steps.filter.outputs.roadbuilder }}
+      skilltracker: ${{ steps.filter.outputs.skilltracker }}
+      searchengine: ${{ steps.filter.outputs.searchengine }}
     steps:
       - uses: actions/checkout@v4
       - id: filter
@@ -32,30 +37,20 @@ jobs:
               - 'skilltracker/**'
             searchengine:
               - 'searchengine/**'
-      - id: build-matrix
-        run: |
-          services=()
-          if [ "${{ steps.filter.outputs.teamhub }}" = 'true' ]; then services+=('"teamhub"'); fi
-          if [ "${{ steps.filter.outputs.coursemaker }}" = 'true' ]; then services+=('"coursemaker"'); fi
-          if [ "${{ steps.filter.outputs.coursereader }}" = 'true' ]; then services+=('"coursereader"'); fi
-          if [ "${{ steps.filter.outputs.roadbuilder }}" = 'true' ]; then services+=('"roadbuilder"'); fi
-          if [ "${{ steps.filter.outputs.skilltracker }}" = 'true' ]; then services+=('"skilltracker"'); fi
-          if [ "${{ steps.filter.outputs.searchengine }}" = 'true' ]; then services+=('"searchengine"'); fi
-          json=$(printf '[%s]' "$(IFS=,; echo "${services[*]}")")
-          echo "services=$json" >> $GITHUB_OUTPUT
 
   lint:
     needs: detect_changes
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        service: ${{ fromJson(needs.detect_changes.outputs.services) }}
+        service: [teamhub, coursemaker, coursereader, roadbuilder, skilltracker, searchengine]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
           go-version: ${{ env.GO_VERSION }}
-      - name: Lint
+      - name: Lint ${{ matrix.service }}
+        if: ${{ needs.detect_changes.outputs[matrix.service] == 'true' }}
         run: |
           cd ${{ matrix.service }}
           golangci-lint run --config .golangci.yml --out-format colored-line-number .
@@ -65,13 +60,14 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        service: ${{ fromJson(needs.detect_changes.outputs.services) }}
+        service: [teamhub, coursemaker, coursereader, roadbuilder, skilltracker, searchengine]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
           go-version: ${{ env.GO_VERSION }}
-      - name: Test
+      - name: Test ${{ matrix.service }}
+        if: ${{ needs.detect_changes.outputs[matrix.service] == 'true' }}
         run: |
           cd ${{ matrix.service }}
           go test ./...
@@ -81,13 +77,14 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        service: ${{ fromJson(needs.detect_changes.outputs.services) }}
+        service: [teamhub, coursemaker, coursereader, roadbuilder, skilltracker, searchengine]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
           go-version: ${{ env.GO_VERSION }}
-      - name: Build
+      - name: Build ${{ matrix.service }}
+        if: ${{ needs.detect_changes.outputs[matrix.service] == 'true' }}
         run: |
           cd ${{ matrix.service }}
           go build -o bin/${{ matrix.service }} .
