@@ -7,4 +7,5 @@ use (
 	./searchengine
 	./skilltracker
 	./teamhub
+	./tools
 )
