@@ -36,37 +36,53 @@ jobs:
         shell: bash
         run: |
           services=()
-          if [ "${{ steps.filter.outputs.teamhub }}"    = 'true' ]; then services+=(teamhub);    fi
-          if [ "${{ steps.filter.outputs.coursemaker }}" = 'true' ]; then services+=(coursemaker); fi
-          if [ "${{ steps.filter.outputs.coursereader }}"= 'true' ]; then services+=(coursereader);fi
-          if [ "${{ steps.filter.outputs.roadbuilder }}" = 'true' ]; then services+=(roadbuilder); fi
-          if [ "${{ steps.filter.outputs.skilltracker }}"= 'true' ]; then services+=(skilltracker);fi
-          if [ "${{ steps.filter.outputs.searchengine }}"= 'true' ]; then services+=(searchengine);fi
+          # если filter.outputs.<service> == 'true', добавляем сервис в JSON-массив
+          for svc in teamhub coursemaker coursereader roadbuilder skilltracker searchengine; do
+            if [[ "${{ steps.filter.outputs[$svc] }}" == 'true' ]]; then
+              services+=("\"$svc\"")
+            fi
+          done
 
-          if [ ${#services[@]} -eq 0 ]; then
+          if [[ ${#services[@]} -eq 0 ]]; then
             echo "services=[]" >> $GITHUB_OUTPUT
           else
-            # build a JSON array of quoted strings
-            printf -v quoted '"%s",' "${services[@]}"
-            echo "services=[${quoted%,}]" >> $GITHUB_OUTPUT
+            # получаем что-то вида ["teamhub","coursereader",…]
+            echo "services=[${services[*]}]" >> $GITHUB_OUTPUT
           fi
 
   lint:
     needs: detect_changes
     runs-on: ubuntu-latest
     strategy:
-      fail-fast: false
       matrix:
-        service: ${{ fromJson(needs.detect_changes.outputs.services) }}
+        service: [teamhub, coursemaker, coursereader, roadbuilder, skilltracker, searchengine]
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - name: Check if ${{ matrix.service }} changed
+        id: check
+        run: |
+          echo "changed=${{ contains(fromJson(needs.detect_changes.outputs.services), matrix.service) }}" >> $GITHUB_OUTPUT
+
+      - name: Skip lint for ${{ matrix.service }}
+        if: ${{ steps.check.outputs.changed != 'true' }}
+        run: echo "→ ${{ matrix.service }} unchanged, skipping lint."
+
+      - name: Checkout
+        if: ${{ steps.check.outputs.changed == 'true' }}
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        if: ${{ steps.check.outputs.changed == 'true' }}
+        uses: actions/setup-go@v5
         with:
           go-version: ${{ env.GO_VERSION }}
+
       - name: Install golangci-lint
+        if: ${{ steps.check.outputs.changed == 'true' }}
         run: |
           go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+
       - name: Lint ${{ matrix.service }}
+        if: ${{ steps.check.outputs.changed == 'true' }}
         run: |
           cd ${{ matrix.service }}
           golangci-lint run \
@@ -77,15 +93,30 @@ jobs:
     needs: detect_changes
     runs-on: ubuntu-latest
     strategy:
-      fail-fast: false
       matrix:
-        service: ${{ fromJson(needs.detect_changes.outputs.services) }}
+        service: [teamhub, coursemaker, coursereader, roadbuilder, skilltracker, searchengine]
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - name: Check if ${{ matrix.service }} changed
+        id: check
+        run: |
+          echo "changed=${{ contains(fromJson(needs.detect_changes.outputs.services), matrix.service) }}" >> $GITHUB_OUTPUT
+
+      - name: Skip tests for ${{ matrix.service }}
+        if: ${{ steps.check.outputs.changed != 'true' }}
+        run: echo "→ ${{ matrix.service }} unchanged, skipping tests."
+
+      - name: Checkout
+        if: ${{ steps.check.outputs.changed == 'true' }}
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        if: ${{ steps.check.outputs.changed == 'true' }}
+        uses: actions/setup-go@v5
         with:
           go-version: ${{ env.GO_VERSION }}
+
       - name: Test ${{ matrix.service }}
+        if: ${{ steps.check.outputs.changed == 'true' }}
         run: |
           cd ${{ matrix.service }}
           go test ./...
@@ -94,15 +125,30 @@ jobs:
     needs: [lint, test]
     runs-on: ubuntu-latest
     strategy:
-      fail-fast: false
       matrix:
-        service: ${{ fromJson(needs.detect_changes.outputs.services) }}
+        service: [teamhub, coursemaker, coursereader, roadbuilder, skilltracker, searchengine]
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - name: Check if ${{ matrix.service }} changed
+        id: check
+        run: |
+          echo "changed=${{ contains(fromJson(needs.detect_changes.outputs.services), matrix.service) }}" >> $GITHUB_OUTPUT
+
+      - name: Skip build for ${{ matrix.service }}
+        if: ${{ steps.check.outputs.changed != 'true' }}
+        run: echo "→ ${{ matrix.service }} unchanged, skipping build."
+
+      - name: Checkout
+        if: ${{ steps.check.outputs.changed == 'true' }}
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        if: ${{ steps.check.outputs.changed == 'true' }}
+        uses: actions/setup-go@v5
         with:
           go-version: ${{ env.GO_VERSION }}
+
       - name: Build ${{ matrix.service }}
+        if: ${{ steps.check.outputs.changed == 'true' }}
         run: |
           cd ${{ matrix.service }}
           go build -o bin/${{ matrix.service }} .
