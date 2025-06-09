@@ -50,7 +50,7 @@ jobs:
     strategy:
       matrix:
         service: [teamhub, coursemaker, coursereader, roadbuilder, skilltracker, searchengine]
-    if: ${{ contains(fromJson(needs.detect_changes.outputs.services), matrix.service) }}
+    if: ${{ contains(fromJson(needs.detect_changes.outputs.services), strategy.matrix.service) }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
@@ -59,9 +59,9 @@ jobs:
       - name: Install golangci-lint
         run: |
           go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
-      - name: Lint ${{ matrix.service }}
+      - name: Lint ${{ strategy.matrix.service }}
         run: |
-          cd ${{ matrix.service }}
+          cd ${{ strategy.matrix.service }}
           golangci-lint run \
             --config .golangci.yml \
             --out-format colored-line-number
@@ -72,15 +72,15 @@ jobs:
     strategy:
       matrix:
         service: [teamhub, coursemaker, coursereader, roadbuilder, skilltracker, searchengine]
-    if: ${{ contains(fromJson(needs.detect_changes.outputs.services), matrix.service) }}
+    if: ${{ contains(fromJson(needs.detect_changes.outputs.services), strategy.matrix.service) }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
           go-version: ${{ env.GO_VERSION }}
-      - name: Test ${{ matrix.service }}
+      - name: Test ${{ strategy.matrix.service }}
         run: |
-          cd ${{ matrix.service }}
+          cd ${{ strategy.matrix.service }}
           go test ./...
 
   build:
@@ -89,13 +89,13 @@ jobs:
     strategy:
       matrix:
         service: [teamhub, coursemaker, coursereader, roadbuilder, skilltracker, searchengine]
-    if: ${{ contains(fromJson(needs.detect_changes.outputs.services), matrix.service) }}
+    if: ${{ contains(fromJson(needs.detect_changes.outputs.services), strategy.matrix.service) }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
           go-version: ${{ env.GO_VERSION }}
-      - name: Build ${{ matrix.service }}
+      - name: Build ${{ strategy.matrix.service }}
         run: |
-          cd ${{ matrix.service }}
-          go build -o bin/${{ matrix.service }} .
+          cd ${{ strategy.matrix.service }}
+          go build -o bin/${{ strategy.matrix.service }} .
