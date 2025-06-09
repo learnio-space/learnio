@@ -70,7 +70,7 @@ jobs:
       - name: Run lint
         run: |
           cd ${{ matrix.service }}
-          golangci-lint run --config .golangci.yml --out-format colored-line-number
+          golangci-lint run --config ../.golangci.yml --out-format colored-line-number
 
   test:
     name: Test ${{ matrix.service }}
