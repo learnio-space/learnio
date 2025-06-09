@@ -92,7 +92,10 @@ jobs:
 
   build:
     name: Build ${{ matrix.service }}
-    needs: detect_changes
+    needs:
+      - detect_changes
+      - test
+      - lint
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
