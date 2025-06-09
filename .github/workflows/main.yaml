@@ -33,24 +33,31 @@ jobs:
             searchengine:
               - 'searchengine/**'
       - id: set-matrix
+        shell: bash
         run: |
           services=()
-          if [ "${{ steps.filter.outputs.teamhub }}"    = 'true' ]; then services+=('"teamhub"');    fi
-          if [ "${{ steps.filter.outputs.coursemaker }}" = 'true' ]; then services+=('"coursemaker"'); fi
-          if [ "${{ steps.filter.outputs.coursereader }}"= 'true' ]; then services+=('"coursereader"');fi
-          if [ "${{ steps.filter.outputs.roadbuilder }}" = 'true' ]; then services+=('"roadbuilder"'); fi
-          if [ "${{ steps.filter.outputs.skilltracker }}"= 'true' ]; then services+=('"skilltracker"');fi
-          if [ "${{ steps.filter.outputs.searchengine }}"= 'true' ]; then services+=('"searchengine"');fi
-          echo "services=[${services[*]}]" >> $GITHUB_OUTPUT
-        shell: bash
+          if [ "${{ steps.filter.outputs.teamhub }}"    = 'true' ]; then services+=(teamhub);    fi
+          if [ "${{ steps.filter.outputs.coursemaker }}" = 'true' ]; then services+=(coursemaker); fi
+          if [ "${{ steps.filter.outputs.coursereader }}"= 'true' ]; then services+=(coursereader);fi
+          if [ "${{ steps.filter.outputs.roadbuilder }}" = 'true' ]; then services+=(roadbuilder); fi
+          if [ "${{ steps.filter.outputs.skilltracker }}"= 'true' ]; then services+=(skilltracker);fi
+          if [ "${{ steps.filter.outputs.searchengine }}"= 'true' ]; then services+=(searchengine);fi
+
+          if [ ${#services[@]} -eq 0 ]; then
+            echo "services=[]" >> $GITHUB_OUTPUT
+          else
+            # build a JSON array of quoted strings
+            printf -v quoted '"%s",' "${services[@]}"
+            echo "services=[${quoted%,}]" >> $GITHUB_OUTPUT
+          fi
 
   lint:
     needs: detect_changes
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
-        service: [teamhub, coursemaker, coursereader, roadbuilder, skilltracker, searchengine]
-    if: ${{ contains(fromJson(needs.detect_changes.outputs.services), strategy.matrix.service) }}
+        service: ${{ fromJson(needs.detect_changes.outputs.services) }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
@@ -59,9 +66,9 @@ jobs:
       - name: Install golangci-lint
         run: |
           go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
-      - name: Lint ${{ strategy.matrix.service }}
+      - name: Lint ${{ matrix.service }}
         run: |
-          cd ${{ strategy.matrix.service }}
+          cd ${{ matrix.service }}
           golangci-lint run \
             --config .golangci.yml \
             --out-format colored-line-number
@@ -70,32 +77,32 @@ jobs:
     needs: detect_changes
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
-        service: [teamhub, coursemaker, coursereader, roadbuilder, skilltracker, searchengine]
-    if: ${{ contains(fromJson(needs.detect_changes.outputs.services), strategy.matrix.service) }}
+        service: ${{ fromJson(needs.detect_changes.outputs.services) }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
           go-version: ${{ env.GO_VERSION }}
-      - name: Test ${{ strategy.matrix.service }}
+      - name: Test ${{ matrix.service }}
         run: |
-          cd ${{ strategy.matrix.service }}
+          cd ${{ matrix.service }}
           go test ./...
 
   build:
     needs: [lint, test]
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
-        service: [teamhub, coursemaker, coursereader, roadbuilder, skilltracker, searchengine]
-    if: ${{ contains(fromJson(needs.detect_changes.outputs.services), strategy.matrix.service) }}
+        service: ${{ fromJson(needs.detect_changes.outputs.services) }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
           go-version: ${{ env.GO_VERSION }}
-      - name: Build ${{ strategy.matrix.service }}
+      - name: Build ${{ matrix.service }}
         run: |
-          cd ${{ strategy.matrix.service }}
-          go build -o bin/${{ strategy.matrix.service }} .
+          cd ${{ matrix.service }}
+          go build -o bin/${{ matrix.service }} .
