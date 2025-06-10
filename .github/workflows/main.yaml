@@ -1,112 +1,71 @@
 name: CI
 
-env:
-  GO_VERSION: '1.24'
-
 on:
   push:
-    branches: [ main ]
+    branches:
+      - main
   pull_request:
-    branches: [ main ]
+    branches:
+      - main
+
+env:
+  GO_VERSION: '1.20'
 
 jobs:
-  detect_changes:
-    runs-on: ubuntu-latest
-    outputs:
-      services: ${{ steps.set-matrix.outputs.services }}
-    steps:
-      - uses: actions/checkout@v4
-
-      - id: filter
-        uses: dorny/paths-filter@v2
-        with:
-          filters: |
-            teamhub:
-              - 'teamhub/**'
-            coursemaker:
-              - 'coursemaker/**'
-            coursereader:
-              - 'coursereader/**'
-            roadbuilder:
-              - 'roadbuilder/**'
-            skilltracker:
-              - 'skilltracker/**'
-            searchengine:
-              - 'searchengine/**'
-
-      - id: set-matrix
-        shell: bash
-        run: |
-          services=()
-          if [[ "${{ steps.filter.outputs.teamhub }}"    == "true" ]]; then services+=("teamhub");    fi
-          if [[ "${{ steps.filter.outputs.coursemaker }}" == "true" ]]; then services+=("coursemaker"); fi
-          if [[ "${{ steps.filter.outputs.coursereader }}" == "true" ]]; then services+=("coursereader"); fi
-          if [[ "${{ steps.filter.outputs.roadbuilder }}" == "true" ]]; then services+=("roadbuilder"); fi
-          if [[ "${{ steps.filter.outputs.skilltracker }}" == "true" ]]; then services+=("skilltracker"); fi
-          if [[ "${{ steps.filter.outputs.searchengine }}" == "true" ]]; then services+=("searchengine"); fi
-
-          if [ ${#services[@]} -eq 0 ]; then
-            echo "services=[]" >> $GITHUB_OUTPUT
-          else
-            printf -v quoted '"%s",' "${services[@]}"
-            echo "services=[${quoted%,}]" >> $GITHUB_OUTPUT
-          fi
-
   lint:
-    name: Lint ${{ matrix.service }}
-    needs: detect_changes
+    name: ${{ matrix.service }}_lint
     runs-on: ubuntu-latest
     strategy:
-      fail-fast: false
       matrix:
-        service: ${{ fromJson(needs.detect_changes.outputs.services) }}
+        service: [coursemaker, coursereader, roadbuilder, searchengine, skilltracker, teamhub]
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - name: Checkout repo
+        uses: actions/checkout@v3
+
+      - name: Setup Go
+        uses: actions/setup-go@v4
         with:
           go-version: ${{ env.GO_VERSION }}
-      - name: Install golangci-lint
-        run: go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
-      - name: Run lint
+
+      - name: Run golangci-lint on ${{ matrix.service }}
         run: |
-          cd ${{ matrix.service }}
-          golangci-lint run --config ../.golangci.yml --out-format colored-line-number
+          # переходить в директорию не обязательно — можно передать путь напрямую
+          golangci-lint run --config ./.golangci.yml ./${{ matrix.service }}
 
   test:
-    name: Test ${{ matrix.service }}
-    needs: detect_changes
+    name: ${{ matrix.service }}_test
+    needs: lint
     runs-on: ubuntu-latest
     strategy:
-      fail-fast: false
       matrix:
-        service: ${{ fromJson(needs.detect_changes.outputs.services) }}
+        service: [coursemaker, coursereader, roadbuilder, searchengine, skilltracker, teamhub]
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@v3
+
+      - uses: actions/setup-go@v4
         with:
           go-version: ${{ env.GO_VERSION }}
-      - name: Run tests
+
+      - name: Run tests for ${{ matrix.service }}
         run: |
-          cd ${{ matrix.service }}
-          go test ./...
+          go test -v ./${{ matrix.service }}/...
 
   build:
-    name: Build ${{ matrix.service }}
-    needs:
-      - detect_changes
-      - test
-      - lint
+    name: ${{ matrix.service }}_build
+    needs: test
     runs-on: ubuntu-latest
     strategy:
-      fail-fast: false
       matrix:
-        service: ${{ fromJson(needs.detect_changes.outputs.services) }}
+        service: [coursemaker, coursereader, roadbuilder, searchengine, skilltracker, teamhub]
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@v3
+
+      - uses: actions/setup-go@v4
         with:
           go-version: ${{ env.GO_VERSION }}
-      - name: Build binary
+
+      - name: Build ${{ matrix.service }}
         run: |
-          cd ${{ matrix.service }}
-          go build -o bin/${{ matrix.service }} .
+          # создаём папку для бинарей
+          mkdir -p bin
+          go build -o bin/${{ matrix.service }} ./${{ matrix.service }}
