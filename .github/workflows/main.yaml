@@ -1,101 +1,93 @@
 name: CI
-
-env:
-  GO_VERSION: '1.24'
-
 on:
   push:
     branches: [ main ]
   pull_request:
     branches: [ main ]
+env:
+  GO_VERSION: '1.24'
 
 jobs:
-  detect_changes:
+  filter:
     runs-on: ubuntu-latest
     outputs:
-      services: ${{ steps.set-matrix.outputs.services }}
+      services: ${{ steps.set-services.outputs.services }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - id: filter
         uses: dorny/paths-filter@v2
         with:
           filters: |
-            teamhub:
-              - 'teamhub/**'
-            coursemaker:
-              - 'coursemaker/**'
-            coursereader:
-              - 'coursereader/**'
-            roadbuilder:
-              - 'roadbuilder/**'
-            skilltracker:
-              - 'skilltracker/**'
-            searchengine:
-              - 'searchengine/**'
-      - id: set-matrix
+            coursemaker:  [ 'coursemaker/**' ]
+            coursereader: [ 'coursereader/**' ]
+            roadbuilder:  [ 'roadbuilder/**' ]
+            searchengine: [ 'searchengine/**' ]
+            skilltracker: [ 'skilltracker/**' ]
+            teamhub:      [ 'teamhub/**' ]
+      - id: set-services
         run: |
-          services=()
-          if [ "${{ steps.filter.outputs.teamhub }}"    = 'true' ]; then services+=('"teamhub"');    fi
-          if [ "${{ steps.filter.outputs.coursemaker }}" = 'true' ]; then services+=('"coursemaker"'); fi
-          if [ "${{ steps.filter.outputs.coursereader }}"= 'true' ]; then services+=('"coursereader"');fi
-          if [ "${{ steps.filter.outputs.roadbuilder }}" = 'true' ]; then services+=('"roadbuilder"'); fi
-          if [ "${{ steps.filter.outputs.skilltracker }}"= 'true' ]; then services+=('"skilltracker"');fi
-          if [ "${{ steps.filter.outputs.searchengine }}"= 'true' ]; then services+=('"searchengine"');fi
-          echo "services=[${services[*]}]" >> $GITHUB_OUTPUT
-        shell: bash
+          services="["
+          if [[ "${{ steps.filter.outputs.coursemaker }}"  == "true" ]]; then services+="\"coursemaker\",";  fi
+          if [[ "${{ steps.filter.outputs.coursereader }}" == "true" ]]; then services+="\"coursereader\","; fi
+          if [[ "${{ steps.filter.outputs.roadbuilder }}"  == "true" ]]; then services+="\"roadbuilder\",";  fi
+          if [[ "${{ steps.filter.outputs.searchengine }}" == "true" ]]; then services+="\"searchengine\","; fi
+          if [[ "${{ steps.filter.outputs.skilltracker }}" == "true" ]]; then services+="\"skilltracker\","; fi
+          if [[ "${{ steps.filter.outputs.teamhub }}"      == "true" ]]; then services+="\"teamhub\",";      fi
+          services="${services%,}"
+          services+="]"
+          echo "services=$services" >> $GITHUB_OUTPUT
 
   lint:
-    needs: detect_changes
+    needs: filter
+    if: ${{ needs.filter.outputs.services != '[]' }}
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        service: [teamhub, coursemaker, coursereader, roadbuilder, skilltracker, searchengine]
-    if: ${{ contains(fromJson(needs.detect_changes.outputs.services), matrix.service) }}
+        service: ${{ fromJson(needs.filter.outputs.services) }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@v3
+      - uses: actions/setup-go@v4
         with:
           go-version: ${{ env.GO_VERSION }}
-      - name: Install golangci-lint
-        run: |
-          go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
-      - name: Lint ${{ matrix.service }}
-        run: |
-          cd ${{ matrix.service }}
-          golangci-lint run \
-            --config .golangci.yml \
-            --out-format colored-line-number
+      - uses: golangci/golangci-lint-action@v3
+        with:
+          version: v1.64.8
+          args: >-
+            --config ./.golangci.yml
+            ./${{ matrix.service }}/...
 
   test:
-    needs: detect_changes
+    needs: filter
+    if: ${{ needs.filter.outputs.services != '[]' }}
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        service: [teamhub, coursemaker, coursereader, roadbuilder, skilltracker, searchengine]
-    if: ${{ contains(fromJson(needs.detect_changes.outputs.services), matrix.service) }}
+        service: ${{ fromJson(needs.filter.outputs.services) }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@v3
+      - uses: actions/setup-go@v4
         with:
           go-version: ${{ env.GO_VERSION }}
-      - name: Test ${{ matrix.service }}
-        run: |
-          cd ${{ matrix.service }}
-          go test ./...
+      - run: |
+          go test -v ./${{ matrix.service }}/...
 
   build:
-    needs: [lint, test]
+    needs:
+      - filter
+      - lint
+      - test
+    if: ${{ needs.filter.outputs.services != '[]' }}
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        service: [teamhub, coursemaker, coursereader, roadbuilder, skilltracker, searchengine]
-    if: ${{ contains(fromJson(needs.detect_changes.outputs.services), matrix.service) }}
+        service: ${{ fromJson(needs.filter.outputs.services) }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@v3
+      - uses: actions/setup-go@v4
         with:
           go-version: ${{ env.GO_VERSION }}
-      - name: Build ${{ matrix.service }}
-        run: |
-          cd ${{ matrix.service }}
-          go build -o bin/${{ matrix.service }} .
+      - run: |
+          mkdir -p /bin
+          go build -o bin/${{ matrix.service }} ./${{ matrix.service }}
