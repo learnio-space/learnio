@@ -1,15 +1,15 @@
 run:
   tests: true
   timeout: 5m
-  build-tags: [ ]
+  build-tags: []
   go: '1.24'
+  output-format: colored-line-number
 
 issues:
   max-issues-per-linter: 75
   max-same-issues: 5
 
 linters:
-  enable-all: false
   enable:
     - errcheck
     - govet
@@ -43,9 +43,7 @@ linters:
 
 linters-settings:
   gci:
-    local-prefixes: github.com/learnio-space/learnio
     skip-generated: true
-
     sections:
       - Standard
       - Default
