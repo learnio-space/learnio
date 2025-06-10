@@ -75,6 +75,7 @@ jobs:
 
   build:
     needs:
+      - filter
       - lint
       - test
     if: ${{ needs.filter.outputs.services != '[]' }}
