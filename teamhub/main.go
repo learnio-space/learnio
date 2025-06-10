@@ -5,5 +5,5 @@ import (
 )
 
 func main() {
-	log.Println("Hello teamhub")
+	log.Println("Hello TeamHub")
 }
