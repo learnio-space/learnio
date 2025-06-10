@@ -54,7 +54,8 @@ jobs:
         with:
           version: v1.64.8
       - run: |
-          golangci-lint run --config ./.golangci.yml ./${{ matrix.service }}
+          cd ${{ needs.filter.outputs.changed_service }}
+          golangci-lint run --config ../.golangci.yml ./...
 
   test:
     needs: filter
